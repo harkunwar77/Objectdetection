@@ -1,0 +1,361 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2636
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;\f1\fnil\fcharset0 Charter-Bold;\f2\fnil\fcharset0 Menlo-Bold;
+\f3\fnil\fcharset0 Charter-Roman;}
+{\colortbl;\red255\green255\blue255;\red31\green31\blue31;\red239\green239\blue239;\red255\green255\blue255;
+}
+{\*\expandedcolortbl;;\cssrgb\c16078\c16078\c16078;\cssrgb\c94902\c94902\c94902;\cssrgb\c100000\c100000\c100000;
+}
+\paperw11900\paperh16840\margl1440\margr1440\vieww28600\viewh18000\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs32 \cf2 \cb3 \expnd0\expndtw0\kerning0
+#GT Boxes\cb1 \
+\cb3 gt_boxes= \{"img_00285.png": [[480, 457, 515, 529], [637, 435, 676, 536]]\}\cb1 \
+\cb3 #Pred Boxes\cb1 \
+\cb3 pred_boxs=\{"img_00285.png": \{"boxes": [[330, 463, 387, 505], [356, 456, 391, 521], [420, 433, 451, 498], [328, 465, 403, 540], [480, 477, 508, 522], [357, 460, 417, 537], [344, 459, 389, 493], [485, 459, 503, 511], [336, 463, 362, 496], [468, 435, 520, 521], [357, 458, 382, 485], [649, 479, 670, 531], [484, 455, 514, 519], [641, 439, 670, 532]], "scores": [0.0739, 0.0843, 0.091, 0.1008, 0.1012, 0.1058, 0.1243, 0.1266, 0.1342, 0.1618, 0.2452, 0.8505, 0.9113, 0.972]\}\}\cb1 \
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb4 importing required libraries
+\f0\b0\fs32 \cb1 \
+\
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3 import numpy as np\
+from copy import deepcopy\
+import pandas as pd\
+import matplotlib.pyplot as plt\
+import seaborn as sns\
+%matplotlib inline\
+\
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb4 Create a dictionary of image id and confidence score
+\f0\b0\fs32 \cb3 \
+\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b \cf2 def get_model_scores(pred_boxes):
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3     """Creates a dictionary of from model_scores to image ids.\cb1 \
+\cb3     Args:\cb1 \
+\cb3         pred_boxes (dict): dict of dicts of 'boxes' and 'scores'\cb1 \
+\cb3     Returns:\cb1 \
+\cb3         dict: keys are model_scores and values are image ids (usually filenames)\cb1 \
+\cb3     """\cb1 \
+\cb3     model_score=\{\}\cb1 \
+\cb3     for img_id, val in pred_boxes.items():\cb1 \
+\cb3         for score in val['scores']:\cb1 \
+\cb3             if score not in model_score.keys():\cb1 \
+\cb3                 model_score[score]=[img_id]\cb1 \
+\cb3             else:\cb1 \
+\cb3                 model_score[score].append(img_id)\cb1 \
+\cb3     return model_score\cb1 \
+\cb3 \
+\
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb4 Calculate the IoU for bounding boxes with Pascal VOC format
+\f0\b0\fs32 \cb3 \
+\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b \cf2 def calc_iou( gt_bbox, pred_bbox)
+\f0\b0 :\
+    '''\
+    This function takes the predicted bounding box and ground truth bounding box and \
+    return the IoU ratio\
+    '''\
+    
+\f2\b x_topleft_gt, y_topleft_gt, x_bottomright_gt, y_bottomright_gt= gt_bbox
+\f0\b0 \
+    
+\f2\b x_topleft_p, y_topleft_p, x_bottomright_p, y_bottomright_p= pred_bbox
+\f0\b0 \
+    \
+    if (x_topleft_gt > x_bottomright_gt) or (y_topleft_gt> y_bottomright_gt):\
+        raise AssertionError("Ground Truth Bounding Box is not correct")\
+    if (x_topleft_p > x_bottomright_p) or (y_topleft_p> y_bottomright_p):\
+        raise AssertionError("Predicted Bounding Box is not correct",x_topleft_p, x_bottomright_p,y_topleft_p,y_bottomright_gt)\
+        \
+         \
+    #if the GT bbox and predcited BBox do not overlap then iou=0\
+    if(x_bottomright_gt< x_topleft_p):\
+        # If bottom right of x-coordinate  GT  bbox is less than or above the top left of x coordinate of  the predicted BBox\
+        \
+        return 0.0\
+    if(y_bottomright_gt< y_topleft_p):  # If bottom right of y-coordinate  GT  bbox is less than or above the top left of y coordinate of  the predicted BBox\
+        \
+        return 0.0\
+    if(x_topleft_gt> x_bottomright_p): # If bottom right of x-coordinate  GT  bbox is greater than or below the bottom right  of x coordinate of  the predcited BBox\
+        \
+        return 0.0\
+    if(y_topleft_gt> y_bottomright_p): # If bottom right of y-coordinate  GT  bbox is greater than or below the bottom right  of y coordinate of  the predcited BBox\
+        \
+        return 0.0\
+    \
+    \
+    
+\f2\b GT_bbox_area = (x_bottomright_gt -  x_topleft_gt + 1) * (  y_bottomright_gt -y_topleft_gt + 1)
+\f0\b0 \
+   
+\f2\b  Pred_bbox_area =(x_bottomright_p - x_topleft_p + 1 ) * ( y_bottomright_p -y_topleft_p + 1)
+\f0\b0 \
+    \
+    
+\f2\b x_top_left =np.max([x_topleft_gt, x_topleft_p])\cb1 \
+\cb3     y_top_left = np.max([y_topleft_gt, y_topleft_p])\cb1 \
+\cb3     x_bottom_right = np.min([x_bottomright_gt, x_bottomright_p])\cb1 \
+\cb3     y_bottom_right = np.min([y_bottomright_gt, y_bottomright_p])
+\f0\b0 \
+    \
+    
+\f2\b intersection_area = (x_bottom_right- x_top_left + 1) * (y_bottom_right-y_top_left  + 1)
+\f0\b0 \
+    \
+    
+\f2\b union_area = (GT_bbox_area + Pred_bbox_area - intersection_area)
+\f0\b0 \
+   \
+    
+\f2\b return intersection_area/union_area\
+\
+\
+\
+\
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\fs42 \cf2 \cb4 Calculate precision and recall\
+\pard\pardeftab720\partightenfactor0
+
+\f3\b0 \cf2 \
+\pard\pardeftab720\partightenfactor0
+
+\f2\b\fs32 \cf2 \cb3 def calc_precision_recall(image_results):
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3     """Calculates precision and recall from the set of images\cb1 \
+\cb3     Args:\cb1 \
+\cb3         img_results (dict): dictionary formatted like:\cb1 \
+\cb3             \{\cb1 \
+\cb3                 'img_id1': \{'true_pos': int, 'false_pos': int, 'false_neg': int\},\cb1 \
+\cb3                 'img_id2': ...\cb1 \
+\cb3                 ...\cb1 \
+\cb3             \}\cb1 \
+\cb3     Returns:\cb1 \
+\cb3         tuple: of floats of (precision, recall)\cb1 \
+\cb3     """\cb1 \
+\cb3     true_positive=0\cb1 \
+\cb3     false_positive=0\cb1 \
+\cb3     false_negative=0\cb1 \
+\cb3     
+\f2\b for img_id, res in image_results.items():
+\f0\b0 \cb1 \
+\cb3         
+\f2\b true_positive +=res['true_positive']\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3         false_positive += res['false_positive']\cb1 \
+\cb3         false_negative += res['false_negative']
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3         try:\cb1 \
+\cb3             
+\f2\b precision = true_positive/(true_positive+ false_positive)
+\f0\b0 \cb1 \
+\cb3         except ZeroDivisionError:\cb1 \
+\cb3             precision=0.0\cb1 \
+\cb3         try:\cb1 \
+\cb3             
+\f2\b recall = true_positive/(true_positive + false_negative)
+\f0\b0 \cb1 \
+\cb3         except ZeroDivisionError:\cb1 \
+\cb3             recall=0.0\cb1 \
+\cb3     return (precision, recall)\
+\
+\
+\
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb4 Returns true positive, false positive and false negative for the batch of bounding boxes for a single image.
+\f3\b0 \
+\pard\pardeftab720\partightenfactor0
+
+\f2\b\fs32 \cf2 \cb3 def get_single_image_results(gt_boxes, pred_boxes, iou_thr):
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3     """Calculates number of true_pos, false_pos, false_neg from single batch of boxes.\cb1 \
+\cb3     Args:\cb1 \
+\cb3         gt_boxes (list of list of floats): list of locations of ground truth\cb1 \
+\cb3             objects as [xmin, ymin, xmax, ymax]\cb1 \
+\cb3         pred_boxes (dict): dict of dicts of 'boxes' (formatted like `gt_boxes`)\cb1 \
+\cb3             and 'scores'\cb1 \
+\cb3         iou_thr (float): value of IoU to consider as threshold for a\cb1 \
+\cb3             true prediction.\cb1 \
+\cb3     Returns:\cb1 \
+\cb3         dict: true positives (int), false positives (int), false negatives (int)\cb1 \
+\cb3     """\cb1 \
+\cb3     all_pred_indices= range(len(pred_boxes))\cb1 \
+\cb3     all_gt_indices=range(len(gt_boxes))\cb1 \
+\cb3     if len(all_pred_indices)==0:\cb1 \
+\cb3         tp=0\cb1 \
+\cb3         fp=0\cb1 \
+\cb3         fn=0\cb1 \
+\cb3         return \{'true_positive':tp, 'false_positive':fp, 'false_negative':fn\}\cb1 \
+\cb3     if len(all_gt_indices)==0:\cb1 \
+\cb3         tp=0\cb1 \
+\cb3         fp=0\cb1 \
+\cb3         fn=0\cb1 \
+\cb3         return \{'true_positive':tp, 'false_positive':fp, 'false_negative':fn\}\cb1 \
+\cb3     \cb1 \
+\cb3     gt_idx_thr=[]\cb1 \
+\cb3     pred_idx_thr=[]\cb1 \
+\cb3     ious=[]\cb1 \
+\cb3     
+\f2\b for ipb, pred_box in enumerate(pred_boxes):\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3         for igb, gt_box in enumerate(gt_boxes):\cb1 \
+\cb3             iou= calc_iou(gt_box, pred_box)
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3             \cb1 \
+\cb3            
+\f2\b  if iou >iou_thr
+\f0\b0 :\cb1 \
+\cb3                 gt_idx_thr.append(igb)\cb1 \
+\cb3                 pred_idx_thr.append(ipb)\cb1 \
+\cb3                 ious.append(iou)\cb1 \
+\cb3     
+\f2\b iou_sort = np.argsort(ious)[::1]
+\f0\b0 \cb1 \
+\cb3     if len(iou_sort)==0:\cb1 \
+\cb3         tp=0\cb1 \
+\cb3         fp=0\cb1 \
+\cb3         fn=0\cb1 \
+\cb3         return \{'true_positive':tp, 'false_positive':fp, 'false_negative':fn\}\cb1 \
+\cb3     else:\cb1 \
+\cb3         gt_match_idx=[]\cb1 \
+\cb3         pred_match_idx=[]\cb1 \
+\cb3         
+\f2\b for idx in iou_sort:\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3             gt_idx=gt_idx_thr[idx]\cb1 \
+\cb3             pr_idx= pred_idx_thr[idx]
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3             # If the boxes are unmatched, add them to matches\cb1 \
+\cb3             
+\f2\b if(gt_idx not in gt_match_idx) and (pr_idx not in pred_match_idx)
+\f0\b0 :\cb1 \
+\cb3                 
+\f2\b gt_match_idx.append(gt_idx)\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3                 pred_match_idx.append(pr_idx)
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3         
+\f2\b tp= len(gt_match_idx)\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3         fp= len(pred_boxes) - len(pred_match_idx)\cb1 \
+\cb3         fn = len(gt_boxes) - len(gt_match_idx)
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3     
+\f2\b return \{'true_positive': tp, 'false_positive': fp, 'false_negative': fn\}\
+\
+\
+\
+\
+\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f1\fs42 \cf2 \cb4 Finally calculating the mAP using 11 point interpolation technique.\'a0
+\f3\b0 You can specify your IoU threshold here else a default value of 0.5 will be used\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b\fs32 \cf2 \cb3 def  get_avg_precision_at_iou(gt_boxes, pred_bb, iou_thr=0.5):
+\f0\b0 \cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3     \cb1 \
+\cb3   
+\f2\b   model_scores = get_model_scores(pred_bb)
+\f0\b0 \cb1 \
+\cb3     sorted_model_scores= sorted(model_scores.keys())\cb1 \
+\cb3 # Sort the predicted boxes in descending order (lowest scoring boxes first):\cb1 \
+\cb3     for img_id in pred_bb.keys():\cb1 \
+\cb3         \cb1 \
+\cb3         arg_sort = np.argsort(pred_bb[img_id]['scores'])\cb1 \
+\cb3         pred_bb[img_id]['scores'] = np.array(pred_bb[img_id]['scores'])[arg_sort].tolist()\cb1 \
+\cb3         pred_bb[img_id]['boxes'] = np.array(pred_bb[img_id]['boxes'])[arg_sort].tolist()\cb1 \
+\cb3 pred_boxes_pruned = deepcopy(pred_bb)\cb1 \
+\cb3     \cb1 \
+\cb3     precisions = []\cb1 \
+\cb3     recalls = []\cb1 \
+\cb3     model_thrs = []\cb1 \
+\cb3     img_results = \{\}\cb1 \
+\cb3 # Loop over model score thresholds and calculate precision, recall\cb1 \
+\cb3     for ithr, model_score_thr in enumerate(sorted_model_scores[:-1]):\cb1 \
+\cb3             # On first iteration, define img_results for the first time:\cb1 \
+\cb3         print("Mode score : ", model_score_thr)\cb1 \
+\cb3         img_ids = gt_boxes.keys() if ithr == 0 else model_scores[model_score_thr]\cb1 \
+\cb3 for img_id in img_ids:\cb1 \
+\cb3                \cb1 \
+\cb3             gt_boxes_img = gt_boxes[img_id]\cb1 \
+\cb3             box_scores = pred_boxes_pruned[img_id]['scores']\cb1 \
+\cb3             start_idx = 0\cb1 \
+\cb3             for score in box_scores:\cb1 \
+\cb3                 if score <= model_score_thr:\cb1 \
+\cb3                     pred_boxes_pruned[img_id]\cb1 \
+\cb3                     start_idx += 1\cb1 \
+\cb3                 else:\cb1 \
+\cb3                     break \cb1 \
+\cb3             # Remove boxes, scores of lower than threshold scores:\cb1 \
+\cb3             pred_boxes_pruned[img_id]['scores']= pred_boxes_pruned[img_id]['scores'][start_idx:]\cb1 \
+\cb3             pred_boxes_pruned[img_id]['boxes']= pred_boxes_pruned[img_id]['boxes'][start_idx:]\cb1 \
+\cb3 # Recalculate image results for this image\cb1 \
+\cb3             print(img_id)\cb1 \
+\cb3             img_results[img_id] = get_single_image_results(gt_boxes_img, pred_boxes_pruned[img_id]['boxes'], iou_thr=0.5)\cb1 \
+\cb3 # calculate precision and recall\cb1 \
+\cb3         prec, rec = calc_precision_recall(img_results)\cb1 \
+\cb3         precisions.append(prec)\cb1 \
+\cb3         recalls.append(rec)\cb1 \
+\cb3         model_thrs.append(model_score_thr)\cb1 \
+\cb3 precisions = np.array(precisions)\cb1 \
+\cb3     recalls = np.array(recalls)\cb1 \
+\cb3     prec_at_rec = []\cb1 \
+\cb3     for recall_level in np.linspace(0.0, 1.0, 11):\cb1 \
+\cb3         try:\cb1 \
+\cb3             args= np.argwhere(recalls>recall_level).flatten()\cb1 \
+\cb3             prec= max(precisions[args])\cb1 \
+\cb3             print(recalls,"Recall")\cb1 \
+\cb3             print(      recall_level,"Recall Level")\cb1 \
+\cb3             print(       args, "Args")\cb1 \
+\cb3             print(       prec, "precision")\cb1 \
+\cb3         except ValueError:\cb1 \
+\cb3             prec=0.0\cb1 \
+\cb3         prec_at_rec.append(prec)\cb1 \
+\cb3     avg_prec = np.mean(prec_at_rec) \cb1 \
+\cb3     return \{\cb1 \
+\cb3         'avg_prec': avg_prec,\cb1 \
+\cb3         'precisions': precisions,\cb1 \
+\cb3         'recalls': recalls,\cb1 \
+\cb3         'model_thrs': model_thrs\}\cb1 \
+\
+\
+}
